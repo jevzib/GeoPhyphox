@@ -1,0 +1,593 @@
+<phyphox version="1.14" locale="en">
+	<title>Geomagnetics</title>
+	<category>Geophyphox</category>
+	<description>
+	Measure magnetic field components with a external ESP32-Magnetometer while recording GPS position with your phone. This experiment is suppose to work similar to conventional geophysical survey software.How does it work? You can connect your phone via Bluetooth Low Energy (BLE) to an ESP32 which again is connected to a magnetometer. After connecting you can go out in the field and start a measurement at distinct locations for a defined amount of time, save the data and move the next location and repeat.At the end of your survey you switch to the Export Data-Tab and press the button, which will send all your data to a mqtt-server for later processing.
+	</description>
+
+	<data-containers>
+		<!-- General -->
+		<container size="1" init="0">target</container>
+		<container size="1" init="0">next</container>
+		<container size="1">count</container>
+		<container size="1">count_plot</container>
+		<container size="0">xaxis</container>
+		<container size="0">heading</container>
+		<!-- Time -->
+		<container size="1">recording_time</container>
+		<container size="0">time_passed</container>
+		<container size="1">time1970</container>
+		<container size="1">linearTime</container>
+		<container size="1">unix_time</container>
+		<container size="0">unix_time_list</container>
+		<container size="1">unix_time_append</container>
+		<container size="0">heading</container>
+		<!-- Student Info -->
+		<container size="1">student_id</container>
+		<!-- Magnetics -->
+		<!--Raw Sensor Buffers-->
+		<container size="1">magX</container>
+		<container size="1">magY</container>
+		<container size="1">magZ</container>
+		<container size="1">T</container>
+		<container size="1">mag_time</container>
+		<container size="1">mag</container>
+		<!--Temporary Raw Sensor Buffers-->
+		<container size="0">recording_magX</container>
+		<container size="0">recording_magY</container>
+		<container size="0">recording_magZ</container>
+		<container size="0">recording_mag</container>
+		<container size="0">recording_T</container>
+		<container size="0">station_magX</container>
+		<container size="0">station_magY</container>
+		<container size="0">station_magZ</container>
+		<container size="0">station_mag</container>
+		<container size="0">station_T</container>
+		<!--Buffers for stacked values and output-->
+		<container size="1">avg_magX_current</container>
+		<container size="1">avg_magY_current</container>
+		<container size="1">avg_magZ_current</container>
+		<container size="1">avg_mag_current</container>
+		<container size="1">avg_T_current</container>
+		<!--Buffers for stacked values and output-->
+		<container size="0">avg_magX_list</container>
+		<container size="0">avg_magY_list</container>
+		<container size="0">avg_magZ_list</container>
+		<container size="0">avg_mag_list</container>
+		<container size="0">avg_T_list</container>
+		<!--Standard Deviation-->
+		<container size="1">std_mag_current</container>
+		<container size="0">std_mag_list</container>
+		<!--Various-->
+		<container size="1">mag_count</container>
+		<container size="0">mag_number</container>
+		<!-- GPS -->
+		<!--Raw Sensor Values-->
+		<container size="0">lat</container>
+		<container size="0">lon</container>
+		<container size="0">z</container>
+		<container size="0">t</container>
+		<container size="1">status</container>
+		<container size="0">satellites</container>
+		<!--Temporary raw sensor buffers-->
+		<container size="0">recording_lat</container>
+		<container size="0">recording_lon</container>
+		<container size="0">recording_z</container>
+		<container size="0">station_lat</container>
+		<container size="0">station_lon</container>
+		<container size="0">station_z</container>
+		<!--Temporary average value buffers-->
+		<container size="1">avg_lat</container>
+		<container size="1">avg_lon</container>
+		<container size="0">avg_z</container>
+		<!--Buffers for stacked values and output-->
+		<container size="0">avg_lat_list</container>
+		<container size="0">avg_lon_list</container>
+		<container size="0">avg_z_list</container>
+		<container size="1">GPS_count</container>
+	</data-containers>
+	<network>
+		<connection id='data_export' address="192.168.1.145" autoConnect="false" service="mqtt/csv" privacy="https://phyphox.org/disclaimer/" conversion="csv" interval="0">
+			<send id="station" type="buffer">xaxis</send>
+			<send id="lat" type="buffer">avg_lat_list</send>
+			<send id="lon" type="buffer">avg_lon_list</send>
+			<send id="altitude" type="buffer">avg_z_list</send>
+			<send id="magX" type="buffer">avg_magX_list</send>
+			<send id="magY" type="buffer">avg_magY_list</send>
+			<send id="magZ" type="buffer">avg_magZ_list</send>
+			<send id="mag_abs" type="buffer">avg_mag_list</send>
+			<send id="mag_abs_std" type="buffer">std_mag_list</send>
+			<send id="time" type="buffer">time_passed</send>
+			<send id="unix_time" type="buffer">unix_time_list</send>
+			<send id="mag_count" type="buffer">mag_number</send>
+			<send id="student_id" type="buffer">student_id</send>
+		</connection>
+	</network>
+	<input>
+		<!-- Connect to Bluetooth Device -->
+		<bluetooth mode="notification" subscribeOnStart="false" autoConnect="false">
+			<output char="cddf1002-30f7-4671-8b43-5e40ba53514a" conversion="float32LittleEndian" offset="0" length="4">magX</output>
+			<output char="cddf1002-30f7-4671-8b43-5e40ba53514a" conversion="float32LittleEndian" offset="4" length="4">magY</output>
+			<output char="cddf1002-30f7-4671-8b43-5e40ba53514a" conversion="float32LittleEndian" offset="8" length="4">magZ</output>
+			<output char="cddf1002-30f7-4671-8b43-5e40ba53514a" conversion="float32LittleEndian" offset="12" length="4">mag</output>
+			<output char="cddf1002-30f7-4671-8b43-5e40ba53514a" conversion="float32LittleEndian" offset="16" length="4">heading</output>
+			<output char="cddf1002-30f7-4671-8b43-5e40ba53514a" extra="time">mag_time</output>
+		</bluetooth>
+
+		<location>
+			<output component="lat">lat</output>
+			<output component="lon">lon</output>
+			<output component="z">z</output>
+			<output component="satellites">satellites</output>
+			<output component="status">status</output>
+		</location>
+	</input>
+	<views>
+		<view label="Values">
+			<edit label="Student ID" signed="false" decimal="false" default="123456">
+				<output>student_id</output>
+			</edit>
+			<value size="1.5" label="Station" precision="0">
+				<input>count</input>
+			</value>
+			<value size="1.5" label="Time" precision="1" unit ="s">
+				<input>linearTime</input>
+			</value>
+			<separator color="orange" height="0.1"/>
+			<value size="1.5" label="Heading" precision="0" unit ="°">
+				<input>heading</input>
+			</value>
+			<value label="Compass" size="1.5" color="red">
+				<input>heading</input>
+				<map max="-157.5">S</map>
+				<map max="-112.5">SW</map>
+				<map max="-67.5">W</map>
+				<map max="-22.5">NW</map>
+				<map max="22.5">N</map>
+				<map max="67.5">NE</map>
+				<map max="112.5">E</map>
+				<map max="157.5">SE</map>
+				<map max="202.5">S</map>
+				<map max="247.5">SW</map>
+				<map max="292.5">W</map>
+				<map max="337.5">NW</map>
+				<map>N</map>
+			</value>
+			<separator color="orange" height="0.1"/>
+			<value size="1.5" label="Magnetometer x" precision="3" color="green" unit ="µT">
+				<input>avg_magX_current</input>
+			</value>
+			<value size="1.5" label="Magnetometer y" precision="3" color="blue" unit ="µT">
+				<input>avg_magY_current</input>
+			</value>
+			<value size="1.5" label="Magnetometer z" precision="3" color="yellow" unit ="µT">
+				<input>avg_magZ_current</input>
+			</value>
+			<value size="1.5" label="Magnetometer abs" precision="3" color="orange" unit ="µT">
+				<input>avg_mag_current</input>
+			</value>
+			<separator color="orange" height="0.1"/>
+			<value size="1.5" label="SD abs" precision="3" color="orange" unit ="µT">
+				<input>std_mag_current</input>
+			</value>
+			<separator color="orange" height="0.1"/>
+			<value size="1.5" label="Count: Mag" precision="0">
+				<input>mag_count</input>
+			</value>
+			<value size="1.5" label="Count: GPS" precision="0">
+				<input>GPS_count</input>
+			</value>
+			<separator color="orange" height="0.1"/>
+			<button label="					Start					">
+				<input type="value">1</input>
+				<output>target</output>
+			</button>
+			<button label="Save">
+				<input type="value">1</input>
+				<output>next</output>
+				<input type="value">0</input>
+				<output>target</output>
+			</button>
+
+		</view>
+		<view label="Visualizations">
+			<graph label="Current Magnetic Field (abs)" labelX="Number" unitX="" labelY="B" unitY="µT" partialUpdate="true" color="orange" yPrecision="4" xPrecision="2">
+				<input axis="y">station_mag</input>
+			</graph>
+			<graph label="Survey (abs)" labelX="Station number" labelY="B" unitY="µT" style="lines" color="blue" partialUpdate="true" yPrecision="4" xPrecision="2">
+				<input axis="x">xaxis</input>
+				<input axis="y">avg_mag_list</input>
+			</graph>
+			<button label="Start">
+				<input type="value">1</input>-
+				<output>target</output>
+			</button>
+			<button label="Save">
+				<input type="value">1</input>
+				<output>next</output>
+				<input type="value">0</input>
+				<output>target</output>
+			</button>
+		</view>
+		<view label="Controls">
+			<info color="ffffff" label="Starts measurement" size="1" />
+			<button label="Start">
+				<input type="value">1</input>
+				<output>target</output>
+			</button>
+			<separator color="orange" height="0.1"/>
+			<info color="ffffff" label="Saves measurement for later export" size="1" />
+			<button label="Save">
+				<input type="value">1</input>
+				<output>next</output>
+				<input type="value">0</input>
+				<output>target</output>
+			</button>
+			<separator color="orange" height="0.1"/>
+			<info color="ffffff" label="Resets current measurement" size="1" />
+			<button label="Reset">
+				<input type="empty"/>
+				<output>station_magX</output>
+				<input type="empty"/>
+				<output>station_magY</output>
+				<input type="empty"/>
+				<output>station_magZ</output>
+				<input type="empty"/>
+				<output>station_mag</output>
+				<input type="empty"/>
+				<output>station_lon</output>
+				<input type="empty"/>
+				<output>station_lat</output>
+				<input type="empty"/>
+				<output>station_z</output>
+				<input type="value">0</input>
+				<output>target</output>
+			</button>
+		</view>
+		<view label="Send Data">
+			<info color="ffffff" label="Tab button once to send data to server" size="1" />
+			<info color="ffffff" label="Double-tab button to update data on server" size="1" />
+			<button label="Export Data">
+				<trigger>data_export</trigger>
+			</button>
+		</view>
+	</views>
+
+	<analysis sleep="0.25">
+		<!-- Automatically stop measurement when minimum number of magnetic measurements are reached -->
+		<if equal="true">
+			<input clear="false">mag_count</input>
+			<input type="value">70</input>
+			<input type="value" clear="false">0</input>
+			<output clear="true">target</output>
+		</if>
+		<!-- Time -->
+		<!-- Time Module -->
+		<timer linearTime="true">
+			<output>linearTime</output>
+			<output as="offset1970">time1970</output>
+		</timer>
+		<!-- Add seconds to unix-time -->
+		<add>
+			<input as="summand" clear="false">time1970</input>
+			<input as="summand" clear="false">linearTime</input>
+			<output as="sum">unix_time</output>
+		</add>
+		<!-- If Next is pressed save unix-time in final buffer -->
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">unix_time_append</input>
+			<output clear="false">unix_time_list</output>
+		</if>
+		<append>
+			<input clear="false">unix_time</input>
+			<output clear="false">unix_time_append</output>
+		</append>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">recording_time</input>
+			<output clear="false">time_passed</output>
+		</if>
+		<append>
+			<input clear="false">linearTime</input>
+			<output clear="false">recording_time</output>
+		</append>
+		<!-- Magnetics 
+		IF Start is pressed save raw sensor data in buffer -->
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="false">magX</input>
+			<output>recording_magX</output>
+		</if>
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="false">magY</input>
+			<output>recording_magY</output>
+		</if>
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="false">magZ</input>
+			<output>recording_magZ</output>
+		</if>
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="false">mag</input>
+			<output>recording_mag</output>
+		</if>
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="false">T</input>
+			<output>recording_T</output>
+		</if>
+		<!-- Appending values to new array for averaging -->
+		<append>
+			<input clear="true">recording_magX</input>
+			<output clear="false">station_magX</output>
+		</append>
+		<append>
+			<input clear="true">recording_magY</input>
+			<output clear="false">station_magY</output>
+		</append>
+		<append>
+			<input clear="true">recording_magZ</input>
+			<output clear="false">station_magZ</output>
+		</append>
+		<append>
+			<input clear="true">recording_mag</input>
+			<output clear="false">station_mag</output>
+		</append>
+		<append>
+			<input clear="true">recording_T</input>
+			<output clear="false">station_T</output>
+		</append>
+		<!-- Average of the buffer is determined -->
+		<average>
+			<input clear="false">station_magX</input>
+			<output as="average">avg_magX_current</output>
+		</average>
+		<average>
+			<input clear="false">station_magY</input>
+			<output as="average">avg_magY_current</output>
+		</average>
+		<average>
+			<input clear="false">station_magZ</input>
+			<output as="average">avg_magZ_current</output>
+		</average>
+		<average>
+			<input clear="false">station_mag</input>
+			<output as="average">avg_mag_current</output>
+			<output as="stddev">std_mag_current</output>
+		</average>
+		<average>
+			<input clear="false">station_T</input>
+			<output as="average">avg_T_current</output>
+		</average>
+		<!-- IF Next is pressed save average value in final buffer -->
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_magX_current</input>
+			<output clear="false">avg_magX_list</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_magY_current</input>
+			<output clear="false">avg_magY_list</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_magZ_current</input>
+			<output clear="false">avg_magZ_list</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_mag_current</input>
+			<output clear="false">avg_mag_list</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_T_current</input>
+			<output clear="false">avg_T_list</output>
+		</if>
+		<if equal="true">
+			<!-- Standard Deviation -->
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">std_mag_current</input>
+			<output clear="false">std_mag_list</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">mag_count</input>
+			<output clear="false">mag_number</output>
+		</if>
+		<!-- Buffer Reset if next is pressed -->
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_magX</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_magY</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_magZ</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_mag</output>
+		</if>
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_T</output>
+		</if>
+		<!-- Determine number of readings & and plot preperation -->
+
+		<count>
+			<input clear="false">station_magX</input>
+			<output>mag_count</output>
+		</count>
+		<count>
+			<input clear="false">avg_magX_list</input>
+			<output>count</output>
+		</count>
+		<subtract>
+			<input clear="false">count</input>
+			<input type="value">1</input>
+			<output>count_plot</output>
+		</subtract>
+		<ramp>
+			<input as="start" type="value">0</input>
+			<input as="length" clear="false">count</input>
+			<input as="stop">count_plot</input>
+			<output>xaxis</output>
+		</ramp>
+		<!-- GPS -->
+		<!-- Latitude 
+		IF Start is pressed save raw sensor data in buffer-->
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="true">lat</input>
+			<output>recording_lat</output>
+		</if>
+		<!-- Appending values to new array for averaging -->
+		<append>
+			<input clear="true">recording_lat</input>
+			<output clear="false">station_lat</output>
+		</append>
+		<!-- Average of the buffer is determined -->
+		<average>
+			<input clear="false">station_lat</input>
+			<output as="average">avg_lat</output>
+		</average>
+		<!-- IF Next is pressed save average value in final buffer -->
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_lat</input>
+			<output clear="false">avg_lat_list</output>
+		</if>
+		<!-- Buffer Reset if next is pressed -->
+		<if equal="true">
+			<!-- is set to 0 (reset)-->
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_lat</output>
+		</if>
+		<count>
+			<input clear="false">station_lat</input>
+			<output>GPS_count</output>
+		</count>
+		<!-- Longitude -->
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="true">lon</input>
+			<output>recording_lon</output>
+		</if>
+		<!-- Appending values to new array for averaging -->
+		<append>
+			<input clear="true">recording_lon</input>
+			<output clear="false">station_lon</output>
+		</append>
+		<!-- Average of the buffer is determined -->
+		<average>
+			<input clear="false">station_lon</input>
+			<output as="average">avg_lon</output>
+		</average>
+		<!-- IF Next is pressed save average value in final buffer -->
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_lon</input>
+			<output clear="false">avg_lon_list</output>
+		</if>
+		<!-- Buffer Reset if next is pressed -->
+		<if equal="true">
+			<!-- is set to 0 (reset)-->
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_lon</output>
+		</if>
+
+		<!-- Height -->
+		<if greater="true">
+			<input clear="false">target</input>
+			<input type="value">0</input>
+			<input clear="true">z</input>
+			<output>recording_z</output>
+		</if>
+		<!-- Appending values to new array for averaging -->
+		<append>
+			<input clear="true">recording_z</input>
+			<output clear="false">station_z</output>
+		</append>
+		<!-- Average of the buffer is determined -->
+		<average>
+			<input clear="false">station_z</input>
+			<output as="average">avg_z</output>
+		</average>
+		<!-- IF Next is pressed save average value in final buffer -->
+		<if equal="true">
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input clear="false">avg_z</input>
+			<output clear="false">avg_z_list</output>
+		</if>
+		<!-- Buffer Reset if next is pressed -->
+		<if equal="true">
+			<!-- is set to 0 (reset)-->
+			<input clear="false">next</input>
+			<input type="value">1</input>
+			<input type="empty"></input>/input>
+			<output clear="true">station_z</output>
+		</if>
+		<append>
+			<input type="value">0</input>
+			<output>next</output>
+		</append>
+	</analysis>
+	<export>
+		<set name="mag_data">
+			<data name="station">xaxis</data>
+			<data name="lat">avg_lat_list</data>
+			<data name="lon">avg_lon_list</data>
+			<data name="altitude">avg_z_list</data>
+			<data name="magX_">avg_magX_list</data>
+			<data name="magY">avg_magY_list</data>
+			<data name="magZ">avg_magZ_list</data>
+			<data name="mag_abs">avg_mag_list</data>
+			<data name="mag_abs_std">std_mag_list</data>
+			<data name="time">time_passed</data>
+			<data name="unix_time">unix_time_list</data>
+			<data name="mag_count">mag_number</data>
+			<data name="student_id">student_id</data>
+		</set>
+	</export>
+</phyphox>
